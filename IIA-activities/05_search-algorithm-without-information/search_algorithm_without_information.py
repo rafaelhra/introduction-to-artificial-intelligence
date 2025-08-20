@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # =============================================================================
 # DEFINIÇÕES BASE (FORNECIDAS NA ATIVIDADE)
 # =============================================================================
@@ -70,6 +68,7 @@ class No:
         return self.__str__()
     
     def __eq__(self, other):
+        # Compara nós com base no estado para evitar duplicatas na fronteira e visitados
         return self.estado == other.estado
 
     def filhos(self, problema):
@@ -109,7 +108,7 @@ BUSCA_SUCESSO = 2
 BUSCA_EM_CURSO = 3
 
 # =============================================================================
-# QUESTÃO 1 e 3: IMPLEMENTAÇÃO DA BUSCA EM LARGURA (BFS)
+# QUESTÃO 1: IMPLEMENTAÇÃO DA BUSCA EM LARGURA (BFS)
 # =============================================================================
 
 class BuscaLargura:
@@ -117,7 +116,7 @@ class BuscaLargura:
     def __init__(self, problema):
         self.problema = problema
         self.fronteira = [problema.inicial]
-        self.visitados = {problema.inicial.estado} # Usar um set para busca mais rápida
+        self.visitados = {problema.inicial.estado} # Usar um set para busca O(1)
         self.solucao = []
         self.situacao = BUSCA_INICIANDO
 
@@ -141,9 +140,7 @@ class BuscaLargura:
 
     def passo_busca(self):
         """Executa um único passo da busca."""
-        if self.situacao == BUSCA_FALHOU:
-            return
-        if self.situacao == BUSCA_SUCESSO:
+        if self.situacao in [BUSCA_FALHOU, BUSCA_SUCESSO]:
             return
 
         if not self.fronteira:
@@ -153,7 +150,6 @@ class BuscaLargura:
         no = self.fronteira.pop(0)
         print(f"  - Expandindo nó: {no.estado}")
         print(f"  - Fronteira antes: {[n.estado for n in self.fronteira]}")
-
 
         if self.problema.objetivo(no):
             self.situacao = BUSCA_SUCESSO
@@ -170,7 +166,7 @@ class BuscaLargura:
 
 
 # =============================================================================
-# QUESTÃO 2 e 4: IMPLEMENTAÇÃO DA BUSCA EM PROFUNDIDADE (DFS)
+# QUESTÃO 2: IMPLEMENTAÇÃO DA BUSCA EM PROFUNDIDADE (DFS)
 # =============================================================================
 
 class BuscaProfundidade:
@@ -203,7 +199,7 @@ class BuscaProfundidade:
 
     def passo_busca(self):
         """Executa um único passo da busca."""
-        if self.situacao == BUSCA_FALHOU or self.situacao == BUSCA_SUCESSO:
+        if self.situacao in [BUSCA_FALHOU, BUSCA_SUCESSO]:
             return
 
         if not self.fronteira:
@@ -221,9 +217,10 @@ class BuscaProfundidade:
             self.solucao = no.constroi_solucao()
             return
 
-        # Adiciona os filhos ao início da fronteira para manter a ordem de pilha
+        # Adiciona os filhos à fronteira. Inverter a ordem é opcional,
+        # mas ajuda a explorar em uma ordem mais previsível (ex: alfabética).
         filhos = no.filhos(self.problema)
-        filhos.reverse() # Inverte para explorar em ordem alfabética (opcional, mas bom para consistência)
+        filhos.reverse()
         for filho in filhos:
             if filho.estado not in self.visitados:
                 self.visitados.add(filho.estado)
@@ -241,91 +238,64 @@ class ProblemaJarros:
     """Define o problema dos jarros de água."""
     def __init__(self, inicial, objetivo_litros):
         # O estado é uma tupla (jarro3L, jarro5L)
-        self.inicial = No(inicial, 0, None, None)
+        self.inicial = No(inicial, 0, None, "Início")
         self.objetivo_litros = objetivo_litros
-        # O espaço de estados é gerado dinamicamente, então não é armazenado aqui.
-        self.espaco_estados = [] # Não usado diretamente, mas a classe No precisa dele.
+        # O espaço de estados é gerado dinamicamente, não é pré-definido.
+        self.espaco_estados = [] 
 
     def objetivo(self, no):
-        """Verifica se o estado do nó é o objetivo."""
+        """Verifica se o estado do nó é o objetivo (um dos jarros tem 4L)."""
         return self.objetivo_litros in no.estado
 
     def filhos(self, no):
-        """Gera todos os estados possíveis a partir do estado atual."""
+        """Gera todos os estados válidos a partir do estado atual."""
         j3, j5 = no.estado
         capacidade = (3, 5)
         filhos = []
         
-        # Ações possíveis:
-        # 1. Encher um jarro
-        # 2. Esvaziar um jarro
-        # 3. Despejar de um para outro
-        
-        # Encher J3
-        if j3 < capacidade[0]:
-            filhos.append(No((capacidade[0], j5), no.custo + 1, no, "Encher J3"))
-        # Encher J5
-        if j5 < capacidade[1]:
-            filhos.append(No((j3, capacidade[1]), no.custo + 1, no, "Encher J5"))
-        
-        # Esvaziar J3
-        if j3 > 0:
-            filhos.append(No((0, j5), no.custo + 1, no, "Esvaziar J3"))
-        # Esvaziar J5
-        if j5 > 0:
-            filhos.append(No((j3, 0), no.custo + 1, no, "Esvaziar J5"))
-            
-        # Despejar de J3 para J5
-        if j3 > 0 and j5 < capacidade[1]:
-            quantidade = min(j3, capacidade[1] - j5)
-            filhos.append(No((j3 - quantidade, j5 + quantidade), no.custo + 1, no, "J3 -> J5"))
-
-        # Despejar de J5 para J3
-        if j5 > 0 and j3 < capacidade[0]:
-            quantidade = min(j5, capacidade[0] - j3)
-            filhos.append(No((j3 + quantidade, j5 - quantidade), no.custo + 1, no, "J5 -> J3"))
+        # Ação 1: Encher o jarro de 3L
+        filhos.append(No((capacidade[0], j5), no.custo + 1, no, "Encher J3"))
+        # Ação 2: Encher o jarro de 5L
+        filhos.append(No((j3, capacidade[1]), no.custo + 1, no, "Encher J5"))
+        # Ação 3: Esvaziar o jarro de 3L
+        filhos.append(No((0, j5), no.custo + 1, no, "Esvaziar J3"))
+        # Ação 4: Esvaziar o jarro de 5L
+        filhos.append(No((j3, 0), no.custo + 1, no, "Esvaziar J5"))
+        # Ação 5: Despejar de J3 para J5
+        quantidade_a_despejar = min(j3, capacidade[1] - j5)
+        filhos.append(No((j3 - quantidade_a_despejar, j5 + quantidade_a_despejar), no.custo + 1, no, "J3 -> J5"))
+        # Ação 6: Despejar de J5 para J3
+        quantidade_a_despejar = min(j5, capacidade[0] - j3)
+        filhos.append(No((j3 + quantidade_a_despejar, j5 - quantidade_a_despejar), no.custo + 1, no, "J5 -> J3"))
             
         return filhos
 
-# Adaptando as classes de busca para o problema dos jarros
+# As classes de busca precisam ser adaptadas para usar o método `filhos` do problema de jarros
 class BuscaLarguraJarros(BuscaLargura):
-    def __init__(self, problema):
-        super().__init__(problema)
-        # Para o problema dos jarros, o 'estado' é uma tupla
-        self.visitados = {problema.inicial.estado}
-
     def passo_busca(self):
         if not self.fronteira:
             self.situacao = BUSCA_FALHOU
             return
         no = self.fronteira.pop(0)
-
         if self.problema.objetivo(no):
             self.situacao = BUSCA_SUCESSO
             self.solucao = no.constroi_solucao()
             return
-        
         for filho in self.problema.filhos(no):
             if filho.estado not in self.visitados:
                 self.visitados.add(filho.estado)
                 self.fronteira.append(filho)
 
 class BuscaProfundidadeJarros(BuscaProfundidade):
-    def __init__(self, problema):
-        super().__init__(problema)
-        self.visitados = {problema.inicial.estado}
-
     def passo_busca(self):
         if not self.fronteira:
             self.situacao = BUSCA_FALHOU
             return
         no = self.fronteira.pop()
-
         if self.problema.objetivo(no):
             self.situacao = BUSCA_SUCESSO
             self.solucao = no.constroi_solucao()
             return
-        
         filhos = self.problema.filhos(no)
         filhos.reverse()
         for filho in filhos:
@@ -341,12 +311,11 @@ if __name__ == "__main__":
     print("==========================================================")
     print("QUESTÃO 1: Rota de Arad a Bucharest com Busca em Largura")
     print("==========================================================")
-    no_arad = No('Arad', 0, None, None)
-    problema_romenia = Problema(estados_romenia,
-                                no_arad,
+    no_arad_bfs = No('Arad', 0, None, None)
+    problema_romenia_bfs = Problema(estados_romenia,
+                                no_arad_bfs,
                                 lambda no: no.estado == 'Bucharest')
-    
-    busca_bfs = BuscaLargura(problema_romenia)
+    busca_bfs = BuscaLargura(problema_romenia_bfs)
     busca_bfs.executar()
 
     print("\n\n")
@@ -356,13 +325,10 @@ if __name__ == "__main__":
     print("==========================================================")
     print("QUESTÃO 3 e 4: Rota de Arad a Bucharest com Busca em Profundidade")
     print("==========================================================")
-    
-    # Reiniciando o problema para uma nova busca
     no_arad_dfs = No('Arad', 0, None, None)
     problema_romenia_dfs = Problema(estados_romenia,
                                     no_arad_dfs,
                                     lambda no: no.estado == 'Bucharest')
-    
     busca_dfs = BuscaProfundidade(problema_romenia_dfs)
     busca_dfs.executar()
 
@@ -378,9 +344,10 @@ if __name__ == "__main__":
     problema_jarros_bfs = ProblemaJarros(inicial=(0, 0), objetivo_litros=4)
     busca_jarros_bfs = BuscaLarguraJarros(problema_jarros_bfs)
     busca_jarros_bfs.executar()
-    print("\nSolução (passos):")
-    for no in busca_jarros_bfs.solucao:
-        print(f"  Estado: {no.estado}, Ação: {no.acao}")
+    if busca_jarros_bfs.solucao:
+        print("\nSolução (passos):")
+        for no in busca_jarros_bfs.solucao:
+            print(f"  Ação: {no.acao:<10} -> Estado: (J3={no.estado[0]}L, J5={no.estado[1]}L)")
 
     print("\n\n")
     
@@ -389,6 +356,8 @@ if __name__ == "__main__":
     problema_jarros_dfs = ProblemaJarros(inicial=(0, 0), objetivo_litros=4)
     busca_jarros_dfs = BuscaProfundidadeJarros(problema_jarros_dfs)
     busca_jarros_dfs.executar()
-    print("\nSolução (passos):")
-    for no in busca_jarros_dfs.solucao:
-        print(f"  Estado: {no.estado}, Ação: {no.acao}")
+    if busca_jarros_dfs.solucao:
+        print("\nSolução (passos):")
+        for no in busca_jarros_dfs.solucao:
+            print(f"  Ação: {no.acao:<10} -> Estado: (J3={no.estado[0]}L, J5={no.estado[1]}L)")
+
