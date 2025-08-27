@@ -1,0 +1,15 @@
+busca_em_largura(prob) {
+    no = novo_no()
+    if objetivo(no) return solucao(no)
+    fronteira = nova_fila()
+    loop {
+        if vazio(fronteira) return FALHA
+        no = fronteira.remove_da_frente()
+        for acao in acoes(prob, no, acao) {
+            if filho.estado nao esta na fronteira {
+                se objetivo(filho) return solucao(no)
+                fronteira.adicione_no_final(filho)
+            }
+        }
+    }
+}
